@@ -12,6 +12,7 @@ interface MessagingProps {
     onAddDocument: (document: StoredDocument) => void;
     onReportGenerated: (report: Report) => void;
     onConsumeTokens: (cost: number) => boolean;
+    onConnectParent: () => void;
 }
 
 interface Thread {
@@ -21,7 +22,7 @@ interface Thread {
     lastMessageAt: string;
 }
 
-const Messaging: React.FC<MessagingProps> = ({ user, userProfile, onAddDocument, onReportGenerated, onConsumeTokens }) => {
+const Messaging: React.FC<MessagingProps> = ({ user, userProfile, onAddDocument, onReportGenerated, onConsumeTokens, onConnectParent }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isAiEnabled, setIsAiEnabled] = useState(false);
@@ -372,6 +373,13 @@ const Messaging: React.FC<MessagingProps> = ({ user, userProfile, onAddDocument,
             )}
 
             <div className="flex flex-col h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                {!isConnected && (
+                    <div className="p-5 sm:p-6 bg-blue-50 border-b border-blue-100">
+                        <h1 className="text-lg font-semibold text-blue-950">Connect to start a conversation</h1>
+                        <p className="text-sm text-blue-900 mt-1">Invite your co-parent or enter their username. Once connected, your discussions appear here.</p>
+                        <button onClick={onConnectParent} className="btn-primary mt-4">Connect co-parent</button>
+                    </div>
+                )}
                 {!activeThreadId ? (
                     // THREAD LIST VIEW
                     <div className="flex flex-col h-full">

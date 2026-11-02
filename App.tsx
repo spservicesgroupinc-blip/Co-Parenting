@@ -19,6 +19,7 @@ import Messaging from './components/Messaging';
 import AuthScreen from './components/AuthScreen';
 import ScriptureModal from './components/ScriptureModal';
 import UpgradeModal from './components/UpgradeModal';
+import ParentConnection from './components/ParentConnection';
 import { Report, UserProfile as UserProfileType, StoredDocument, View, IncidentTemplate, User, SubscriptionTier } from './types';
 import { SparklesIcon } from './components/icons';
 import { api } from './services/api';
@@ -29,6 +30,8 @@ const App: React.FC = () => {
     const [authChecked, setAuthChecked] = useState(false);
 
     const [view, setView] = useState<View>('dashboard');
+    const [invitedBy, setInvitedBy] = useState(() => new URLSearchParams(window.location.search).get('connect')?.trim() || '');
+    const [pendingLinkUsername, setPendingLinkUsername] = useState('');
     
     // Data State
     const [reports, setReports] = useState<Report[]>([]);
@@ -111,14 +114,13 @@ const App: React.FC = () => {
             
             const profile = data.profile || null;
             if (profile) {
-                if (data.linkedUserId && !profile.linkedUserId) {
-                    profile.linkedUserId = data.linkedUserId;
-                }
+                profile.linkedUserId = data.linkedUserId || null;
                 // Initialize default tier and tokens if missing
                 if (!profile.tier) profile.tier = 'Free';
                 if (profile.tokens === undefined) profile.tokens = 50;
             }
             setUserProfile(profile);
+            setUser(current => current?.userId === userId ? { ...current, linkedUserId: data.linkedUserId || undefined } : current);
             
             setDocuments(data.documents || []);
         } catch (error) {
@@ -182,6 +184,7 @@ const App: React.FC = () => {
 
     const handleLogin = (u: User) => {
         setUser(u);
+        setView(invitedBy ? 'connection' : 'dashboard');
         // Removed localStorage.setItem
         loadUserData(u.userId);
     };
@@ -193,13 +196,14 @@ const App: React.FC = () => {
         setDocuments([]);
         setIncidentTemplates([]);
         setUserProfile(null);
+        setPendingLinkUsername('');
     };
 
     const handleProfileSave = (profile: UserProfileType) => {
         // Ensure we don't overwrite existing tokens/tier if the profile form doesn't handle them
-        const mergedProfile = { ...profile, tokens: userProfile?.tokens ?? 50, tier: userProfile?.tier ?? 'Free' };
+        const mergedProfile = { ...profile, linkedUserId: userProfile?.linkedUserId || user?.linkedUserId || null, tokens: userProfile?.tokens ?? 50, tier: userProfile?.tier ?? 'Free' };
         setUserProfile(mergedProfile);
-        setView('dashboard');
+        setView(invitedBy ? 'connection' : 'dashboard');
         if (user) api.saveProfile(user.userId, mergedProfile);
     };
 
@@ -314,6 +318,20 @@ const App: React.FC = () => {
         setIsAgentOpen(true);
     };
 
+    const dismissInvite = () => {
+        setInvitedBy('');
+        const url = new URL(window.location.href);
+        url.searchParams.delete('connect');
+        window.history.replaceState(null, '', url);
+    };
+
+    const handleParentConnected = (linkedUserId: string) => {
+        setUserProfile(profile => profile ? { ...profile, linkedUserId } : profile);
+        setUser(current => current ? { ...current, linkedUserId } : current);
+        setPendingLinkUsername('');
+        dismissInvite();
+    };
+
     const handleBuildPackageClick = () => {
         setIsEvidenceBuilderOpen(true);
     };
@@ -340,7 +358,7 @@ const App: React.FC = () => {
     if (!authChecked) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
 
     if (!user) {
-        return <AuthScreen onLogin={handleLogin} initialMode="login" />;
+        return <AuthScreen onLogin={handleLogin} initialMode="login" invitedBy={invitedBy} />;
     }
     
     if (!isLoadingData && !userProfile && view !== 'profile') {
@@ -353,6 +371,7 @@ const App: React.FC = () => {
                     isInitialSetup={true}
                     userId={user.userId}
                     onRefreshData={() => loadUserData(user.userId)}
+                    onConnectParent={() => handleViewChange('connection')}
                 />
             </div>
         );
@@ -367,7 +386,13 @@ const App: React.FC = () => {
                             reports={reports}
                             onViewChange={handleViewChange}
                             onAnalyzeIncident={handleAnalyzeIncident}
+                            pendingLinkUsername={pendingLinkUsername}
                         />;
+            case 'connection':
+                return <ParentConnection user={user} linkedUserId={userProfile?.linkedUserId} invitedBy={invitedBy}
+                            pendingUsername={pendingLinkUsername} onPending={setPendingLinkUsername}
+                            onConnected={handleParentConnected} onDismissInvite={dismissInvite}
+                            onViewChange={handleViewChange} isOffline={isOffline} />;
             case 'new_report':
                 return <ChatInterface 
                             onReportGenerated={handleReportGenerated} 
@@ -423,13 +448,7 @@ const App: React.FC = () => {
                             onConsumeTokens={handleConsumeTokens}
                         />;
             case 'profile':
-                return <UserProfile 
-                            onSave={handleProfileSave} 
-                            onCancel={() => handleViewChange('dashboard')}
-                            currentProfile={userProfile}
-                            userId={user.userId}
-                            onRefreshData={() => loadUserData(user.userId)}
-                        />;
+                return null;
             case 'calendar':
                 return <CalendarView 
                             reports={reports}
@@ -438,6 +457,7 @@ const App: React.FC = () => {
                             onDayClick={handleCalendarDayClick}
                             {...selectionProps}
                             userProfile={userProfile}
+                            user={user}
                         />;
             case 'messaging':
                 return <Messaging 
@@ -446,6 +466,7 @@ const App: React.FC = () => {
                             onAddDocument={handleAddDocument} 
                             onReportGenerated={handleReportGenerated}
                             onConsumeTokens={handleConsumeTokens}
+                            onConnectParent={() => handleViewChange('connection')}
                         />;
             case 'timeline':
             default:
@@ -461,7 +482,8 @@ const App: React.FC = () => {
     const isChatView = view === 'new_report' || view === 'assistant' || view === 'messaging';
 
     return (
-        <div className="h-[100dvh] bg-gray-100 flex flex-col">
+        <div className="h-[100dvh] bg-gray-50 flex flex-col">
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-4 focus:z-[70] focus:bg-white focus:p-3 focus:rounded-lg">Skip to main content</a>
             <Header 
                 onMenuClick={() => setIsSidebarOpen(prev => !prev)} 
                 onProfileClick={() => handleViewChange('profile')}
@@ -480,14 +502,23 @@ const App: React.FC = () => {
                     isOpen={isSidebarOpen}
                     onLogout={handleLogout}
                     userTier={userProfile?.tier}
+                    isConnected={!!userProfile?.linkedUserId}
+                    onClose={() => setIsSidebarOpen(false)}
                 />
-                <main className={`flex-1 ${isChatView ? 'p-0 sm:p-6 lg:p-8 flex flex-col' : 'p-4 sm:p-6 lg:p-8 overflow-y-auto'} pb-28 md:pb-6`}>
+                <main id="main-content" className={`flex-1 min-w-0 min-h-0 ${isChatView ? 'p-0 sm:p-6 lg:p-8 flex flex-col' : 'p-4 sm:p-6 lg:p-8 overflow-y-auto'} pb-24 md:pb-6`}>
                     <div className={`mx-auto max-w-7xl w-full ${isChatView ? 'flex-1 min-h-0' : ''}`}>
                         {isLoadingData ? (
                             <div className="flex justify-center items-center h-full">
                                 <SparklesIcon className="w-8 h-8 text-blue-500 animate-spin" />
                             </div>
-                        ) : renderView()}
+                        ) : <>
+                            {renderView()}
+                            <div hidden={view !== 'profile'}>
+                                <UserProfile onSave={handleProfileSave} onCancel={() => handleViewChange('dashboard')}
+                                    currentProfile={userProfile} userId={user.userId}
+                                    onConnectParent={() => handleViewChange('connection')} />
+                            </div>
+                        </>}
                     </div>
                 </main>
             </div>

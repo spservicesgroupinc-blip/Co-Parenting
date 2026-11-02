@@ -1,5 +1,5 @@
 
-import { Report, StoredDocument, IncidentTemplate, UserProfile, User, Message, SharedEvent } from '../types';
+import { Report, StoredDocument, IncidentTemplate, UserProfile, User, Message, SharedEvent, ParentLinkResult } from '../types';
 
 const DEFAULT_API_URL = import.meta.env.VITE_BACKEND_URL || '';
 let API_URL = DEFAULT_API_URL;
@@ -51,9 +51,13 @@ export const api = {
         const res = await request('getMessages', { userId, after });
         return res.messages as Message[];
     },
-    linkByUsername: async (userId: string, targetUsername: string) => {
+    linkByUsername: async (userId: string, targetUsername: string): Promise<ParentLinkResult> => {
         const res = await request('linkByUsername', { userId, targetUsername });
-        return res.linkedUserId;
+        if (res.status === 'pending') return { status: 'pending' };
+        if (res.status === 'success' && typeof res.linkedUserId === 'string' && res.linkedUserId) {
+            return { status: 'success', linkedUserId: res.linkedUserId };
+        }
+        throw new Error('The connection could not be confirmed. Please check again.');
     },
     saveSharedEventsBatch: async (userId: string, events: SharedEvent[]) => request('saveSharedEventsBatch', { userId, events }),
     getSharedEvents: async (userId: string) => {

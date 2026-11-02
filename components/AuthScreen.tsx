@@ -7,9 +7,10 @@ import { BookOpenIcon, LockClosedIcon, CheckCircleIcon } from './icons';
 interface AuthScreenProps {
     onLogin: (user: User) => void;
     initialMode?: 'login' | 'signup';
+    invitedBy?: string;
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login', invitedBy }) => {
     const [mode, setMode] = useState<'setup' | 'login' | 'signup'>(initialMode);
     
     const [apiUrlInput, setApiUrlInput] = useState('');
@@ -26,7 +27,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
             return;
         }
         setApiUrl(apiUrlInput);
-        setMode('signup');
+        setMode(initialMode);
         setError('');
     };
 
@@ -111,7 +112,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-            <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+            <div className="mb-6 flex items-center gap-2 text-blue-950"><BookOpenIcon className="w-7 h-7" /><span className="text-xl font-semibold tracking-tight">CustodyX<span className="text-blue-600">.ai</span></span></div>
+            <div className="max-w-md w-full bg-white rounded-xl border border-gray-200 shadow-sm p-6 sm:p-8">
+                {invitedBy && <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-950 break-words"><p className="font-semibold">@{invitedBy} invited you to connect</p><p className="mt-1">Sign in or create your own account. You’ll confirm the connection next.</p></div>}
                 <div className="text-center mb-8">
                     <div className="bg-blue-950 p-3 rounded-xl inline-block mb-4">
                         <LockClosedIcon className="h-8 w-8 text-white" />
@@ -121,7 +124,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
                     </h1>
                     <p className="text-gray-600 mt-2">
                         {mode === 'login' 
-                            ? 'Secure access to your Shouting Parents data.' 
+                            ? 'Welcome back. Your family workspace is ready.' 
                             : 'Sign up to start managing your co-parenting journey securely.'}
                     </p>
                 </div>
@@ -145,21 +148,27 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
 
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <label htmlFor="auth-username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                         <input
+                            id="auth-username"
+                            autoComplete="username"
+                            autoCapitalize="none"
+                            spellCheck={false}
                             type="text"
                             required
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Choose a username"
+                            placeholder={mode === 'login' ? 'Enter your username' : 'Choose your own username'}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
                     {mode === 'signup' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                            <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                             <input
+                                id="auth-email"
+                                autoComplete="email"
                                 type="email"
                                 required
                                 value={email}
@@ -171,8 +180,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <label htmlFor="auth-password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input
+                            id="auth-password"
+                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                             type="password"
                             required
                             value={password}
@@ -184,8 +195,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
 
                     {mode === 'signup' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                            <label htmlFor="auth-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                             <input
+                                id="auth-confirm-password"
+                                autoComplete="new-password"
                                 type="password"
                                 required
                                 value={confirmPassword}
@@ -196,7 +209,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, initialMode = 'login' 
                         </div>
                     )}
 
-                    {error && <p className="text-red-600 text-sm">{error}</p>}
+                    {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
 
                     <button
                         type="submit"

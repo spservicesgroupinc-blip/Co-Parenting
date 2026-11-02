@@ -408,7 +408,7 @@ const IncidentLogger: React.FC<ChatInterfaceProps> = ({ onReportGenerated, userP
 
     return (
         <div className="flex flex-col h-full bg-white sm:border sm:border-gray-200 sm:rounded-lg sm:shadow-sm">
-            <div className="flex-shrink-0 p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-gray-50 rounded-t-lg">
                 <div>
                     <h1 className="text-xl font-bold text-gray-900 tracking-tight">
                         {mode === 'form' ? 'Log New Incident' : 'AI Documentation Assistant'}
